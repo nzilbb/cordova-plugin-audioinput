@@ -129,17 +129,32 @@ var fileSystem = null;
 
 function initAudio(onSuccess, onError) {
     console.log("AudioInputCaptureProxy: initAudio");
-    audioContext = new window.AudioContext();
+    var AudioContext = window.AudioContext // Default
+    || window.webkitAudioContext // Safari and old versions of Chrome
+    || false;
+    if (!AudioContext)  {
+	onSuccess(false, "AudioContext not supported");
+	return;
+    }
+
+    audioContext = new AudioContext();
     if (!navigator.getUserMedia) {
         navigator.getUserMedia = navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
     }
-    if (!navigator.getUserMedia) 
-    {
+    if (!navigator.getUserMedia) {
 	onSuccess(false, "getUserMedia not supported");
 	return;
     }
-    onSuccessGotStream = onSuccess;
-    navigator.getUserMedia(
+    if (navigator.mediaDevices.getUserMedia) { // iOS...
+	onSuccessGotStream = onSuccess;
+	navigator.mediaDevices.getUserMedia({
+	    audio:{deviceId:"default"}
+	}).then(gotStream).catch(function(e){
+	    console.log("getUserMedia CATCH: " + e);
+	    onSuccess(false, e);
+	});
+    } else { // other OS's 
+	navigator.getUserMedia(
         {
 	    "audio": {
                 "mandatory": {
@@ -154,6 +169,7 @@ function initAudio(onSuccess, onError) {
 	    console.log("AudioInputCaptureProxy: " + e);
 	    onSuccess(false, e);
         });
+    }
 } // initiAudio
 
 // callback by web audio when access to the microphone is gained (browser platform)
